@@ -6,10 +6,19 @@ using UnityEngine;
 
 public class PlayerAgent : Agent
 {
+    [Tooltip("Object the agent searches for")]
     public Transform Target;
-    Rigidbody rBody;
-    RayPerceptionSensorComponent3D rayPerception;
     
+    [Tooltip("how fast the agent moves forward")]
+    public float forceMultiplier = 20;
+
+    [Tooltip("How fast the agent turns")]
+    public float turnSpeed = 180f;
+
+    Rigidbody rBody;
+
+    RayPerceptionSensorComponent3D rayPerception;
+
 
 
     // Start is called before the first frame update
@@ -53,31 +62,70 @@ public class PlayerAgent : Agent
 
 
 
-    public float forceMultiplier = 20;
+    
     public override void OnActionReceived(float[] vectorAction)
     {
-        // Actions, size = 2
-        Vector3 controlSignal = Vector3.zero;
-        controlSignal.x = vectorAction[0];
-        controlSignal.z = vectorAction[1]; 
-        transform.rotation = Quaternion.Euler(0f, vectorAction[2] * 20, 0f);       
-        rBody.AddForce(controlSignal * forceMultiplier);
+        // Convert the first action to forward movement
+        float forwardAmount = vectorAction[0];
+
+        // Convert the second action to turning left or right
+        float turnAmount = 0f;
+        if (vectorAction[1] == 1f)
+        {
+            turnAmount = -1f;
+        }
+        else if (vectorAction[1] == 2f)
+        {
+            turnAmount = 1f;
+        }
+
+        // Apply movement
+        rBody.MovePosition(transform.position + transform.forward * forwardAmount * forceMultiplier * Time.fixedDeltaTime);
+        transform.Rotate(transform.up * turnAmount * turnSpeed * Time.fixedDeltaTime);
 
         // Rewards
         float distanceToTarget = Vector3.Distance(this.transform.localPosition, Target.localPosition);
-
-        // Reached target
         if (distanceToTarget < 1.4f)
         {
             SetReward(1.0f);
             EndEpisode();
         }
 
-        // Fell off platform
+
+        // Apply a tiny negative reward every step to encourage action
+        if (this.MaxStep > 0)
+            AddReward(-1f / MaxStep);
+
+
         if (this.transform.localPosition.y < 0)
         {
             EndEpisode();
         }
+
+        //// Actions, size = 2
+        //Vector3 controlSignal = Vector3.zero;
+        ////TODO: play with the actions!!
+        //controlSignal.x = vectorAction[0];
+        //controlSignal.z = vectorAction[1]; 
+        //transform.rotation = Quaternion.Euler(0f, vectorAction[2] * 180, 0f);
+        //// rBody.AddForce(controlSignal * forceMultiplier, ForceMode.Acceleration);
+        //rBody.AddForce(transform.forward * forceMultiplier);
+
+        //// Rewards
+        //float distanceToTarget = Vector3.Distance(this.transform.localPosition, Target.localPosition);
+
+        //// Reached target
+        //if (distanceToTarget < 1.4f)
+        //{
+        //    SetReward(1.0f);
+        //    EndEpisode();
+        //}
+
+        //// Fell off platform
+        //if (this.transform.localPosition.y < 0)
+        //{
+        //    EndEpisode();
+        //}
     }
 
     public override void Heuristic(float[] actionsOut)
